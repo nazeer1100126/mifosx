@@ -87,7 +87,11 @@ public final class LoanProductDataValidator {
             LoanProductConstants.minimumGuaranteeFromOwnFundsParamName, LoanProductConstants.principalThresholdForLastInstallmentParamName,
             LoanProductConstants.accountMovesOutOfNPAOnlyOnArrearsCompletionParamName, LoanProductConstants.canDefineEmiAmountParamName,
             LoanProductConstants.installmentAmountInMultiplesOfParamName,
-            LoanProductConstants.preClosureInterestCalculationStrategyParamName, LoanProductConstants.allowAttributeOverridesParamName));
+            LoanProductConstants.preClosureInterestCalculationStrategyParamName, LoanProductConstants.allowAttributeOverridesParamName,
+            LoanProductConstants.allowVariableInstallmentsParamName,
+            LoanProductConstants.minimumGapBetweenInstallments,
+            LoanProductConstants.maximumGapBetweenInstallments,
+            LoanProductConstants.minimumInstallmentAmount));
 
     private final FromJsonHelper fromApiJsonHelper;
 
@@ -563,9 +567,56 @@ public final class LoanProductDataValidator {
 
         validateLoanConfigurableAttributes(baseDataValidator, element);
 
+        validateVariableInstallmentSettings(baseDataValidator, element) ;
+        
         throwExceptionIfValidationWarningsExist(dataValidationErrors);
     }
 
+    private void validateVariableInstallmentSettings(final DataValidatorBuilder baseDataValidator, final JsonElement element) {
+        if (this.fromApiJsonHelper.parameterExists(LoanProductConstants.allowVariableInstallmentsParamName, element) &&
+                this.fromApiJsonHelper.extractBooleanNamed(LoanProductConstants.allowVariableInstallmentsParamName, element)) {
+            
+            Long minimumGapBetweenInstallments = null ;
+            if(this.fromApiJsonHelper.parameterExists(LoanProductConstants.minimumGapBetweenInstallments, element)) {
+                minimumGapBetweenInstallments = this.fromApiJsonHelper.extractLongNamed(LoanProductConstants.minimumGapBetweenInstallments, element);
+                baseDataValidator.reset().parameter(LoanProductConstants.minimumGapBetweenInstallments).value(minimumGapBetweenInstallments).notNull();    
+            }else {
+                baseDataValidator.reset().parameter(LoanProductConstants.minimumGapBetweenInstallments).failWithCode("is.mandatory.when.allowVariableInstallments.is.true", 
+                        "minimumGap param is mandatory when allowVariableInstallments is true");
+            }
+            
+            if(this.fromApiJsonHelper.parameterExists(LoanProductConstants.maximumGapBetweenInstallments, element)) {
+                final Long maximumGapBetweenInstallments = this.fromApiJsonHelper.extractLongNamed(LoanProductConstants.maximumGapBetweenInstallments, element);
+                baseDataValidator.reset().parameter(LoanProductConstants.minimumGapBetweenInstallments).value(maximumGapBetweenInstallments).notNull();
+                baseDataValidator.reset().parameter(LoanProductConstants.maximumGapBetweenInstallments).value(maximumGapBetweenInstallments)
+                .notNull().longGreaterThanNumber(minimumGapBetweenInstallments);
+            }
+            
+            if(this.fromApiJsonHelper.parameterExists(LoanProductConstants.minimumInstallmentAmount, element)) {
+                final BigDecimal minimumInstallmentAmount = this.fromApiJsonHelper.extractBigDecimalNamed(LoanProductConstants.minimumInstallmentAmount, element,
+                        Locale.getDefault());
+                baseDataValidator.reset().parameter(LoanProductConstants.minimumGapBetweenInstallments).value(minimumInstallmentAmount).notNull().positiveAmount();    
+            }
+            
+            
+        }else {
+            if(this.fromApiJsonHelper.parameterExists(LoanProductConstants.minimumGapBetweenInstallments, element)){
+                baseDataValidator.reset().parameter(LoanProductConstants.minimumGapBetweenInstallments).failWithCode("not.supported.when.allowVariableInstallments.is.false", 
+                                "minimumGap param is not supported when allowVariableInstallments is not supplied or false");
+            }
+            
+            if(this.fromApiJsonHelper.parameterExists(LoanProductConstants.maximumGapBetweenInstallments, element)){
+                baseDataValidator.reset().parameter(LoanProductConstants.maximumGapBetweenInstallments).failWithCode("not.supported.when.allowVariableInstallments.is.false", 
+                                "maximumGap param is not supported when allowVariableInstallments is not supplied or false");
+            }
+            
+            if(this.fromApiJsonHelper.parameterExists(LoanProductConstants.minimumInstallmentAmount, element)){
+                baseDataValidator.reset().parameter(LoanProductConstants.minimumInstallmentAmount).failWithCode("not.supported.when.allowVariableInstallments.is.false", 
+                                "minimumInstallmentAmount param is not supported when allowVariableInstallments is not supplied or false");
+            }
+
+        }
+    }
     private void validateLoanConfigurableAttributes(final DataValidatorBuilder baseDataValidator, final JsonElement element) {
 
         if (this.fromApiJsonHelper.parameterExists(LoanProductConstants.allowAttributeOverridesParamName, element)) {
@@ -1275,6 +1326,7 @@ public final class LoanProductDataValidator {
 
         // validateLoanConfigurableAttributes(baseDataValidator,element);
 
+        validateVariableInstallmentSettings(baseDataValidator, element) ;
         throwExceptionIfValidationWarningsExist(dataValidationErrors);
     }
 
